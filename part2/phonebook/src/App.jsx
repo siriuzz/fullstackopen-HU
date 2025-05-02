@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios';
+import peopleService from './services/people';
 // import Filter from './components/Filter'
 // import PersonForm from './components/PersonForm';
 
@@ -23,50 +23,62 @@ function PersonForm({ newName, setNewName, newNumber, setNewNumber, addPerson })
     </form>
   )
 }
-function Persons({ namesToShow }) {
+function People({ namesToShow, onDelete }) {
   return (
     <>
       {namesToShow.map((person, i) => {
-        return <Person key={i} person={person} />
+        return <div key={i}><Person person={person} onDelete={onDelete} /></div>
       })}
     </>
   )
 }
 
-function Person({ person }) {
+function Person({ person, onDelete }) {
   return (
     <>
       <p>{person.name} {person.number}</p>
+      <button onClick={() => onDelete(person)}>Delete</button>
     </>
   )
 }
 
 const App = () => {
-  const [persons, setPersons] = useState([])
+  const [people, setPeople] = useState([])
   const [newName, setNewName] = useState('');
   const [nameFilter, setNameFilter] = useState('');
   const [newNumber, setNewNumber] = useState('');
 
   useEffect(() => {
-    axios.get('http://localhost:3001/persons').then(promise => {
-      const data = promise.data;
-      setPersons(data);
-    }
-    )
+    peopleService.getAll().then((data) => setPeople(data))
 
   }, [])
 
   const addPerson = (e) => {
     e.preventDefault();
-    if (persons.reduce((prev, curr) => {
+    if (people.reduce((prev, curr) => {
       return curr.name == newName || curr.number == newNumber
     }, false)) return alert(`The name ${newName} or number ${newNumber} is already added to the phonebook`);
-    setPersons(persons.concat({ name: newName, number: newNumber }))
-    setNewName('');
-    setNewNumber('');
+    peopleService.create({ name: newName, number: newNumber }).then(
+      (data) => {
+        console.log(data);
+        setPeople(people.concat({ name: newName, number: newNumber }));
+        setNewName('');
+        setNewNumber('');
+      }
+    );
   }
 
-  const namesToShow = nameFilter === '' ? persons : persons.filter((person) => person.name.toLowerCase() == nameFilter.toLowerCase())
+  const deletePerson = (person) => {
+    console.log(person);
+    if (
+      window.confirm(`This action is not reversible, are you sure? User to delete: ${person.name}`)
+    ) peopleService.deletePerson(person.id).then(() => console.log(`persona con id ${person.id} borrada`)).then(
+      () => setPeople(people.filter((curr) => person.id !== curr.id))
+    );
+
+  }
+
+  const namesToShow = nameFilter === '' ? people : people.filter((person) => person.name.toLowerCase() == nameFilter.toLowerCase())
   return (
     <div>
       <h2>Phonebook</h2>
@@ -74,7 +86,7 @@ const App = () => {
       <h2>add new person and number</h2>
       <PersonForm newName={newName} setNewName={setNewName} newNumber={newNumber} setNewNumber={setNewNumber} addPerson={addPerson} />
       <h2>Numbers</h2>
-      <Persons namesToShow={namesToShow} />
+      <People namesToShow={namesToShow} onDelete={deletePerson} />
     </div>
   )
 }
